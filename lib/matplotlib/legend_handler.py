@@ -721,20 +721,23 @@ class HandlerTuple(HandlerBase):
     Handler for Tuple.
     """
 
-    def __init__(self, ndivide=1, pad=None, **kwargs):
+    def __init__(self, ndivide=1, pad=None, direction='x', **kwargs):
         """
         Parameters
         ----------
-        ndivide : int or None, default: 1
+        ndivide : int, default: 1
             The number of sections to divide the legend area into.  If None,
             use the length of the input tuple.
         pad : float, default: :rc:`legend.borderpad`
             Padding in units of fraction of font size.
+        direction : string, default: 'x'
+            Direction of the division. Use only 'x' or 'y'.
         **kwargs
             Keyword arguments forwarded to `.HandlerBase`.
         """
         self._ndivide = ndivide
         self._pad = pad
+        self._direction = direction
         super().__init__(**kwargs)
 
     def create_artists(self, legend, orig_handle,
@@ -752,22 +755,34 @@ class HandlerTuple(HandlerBase):
             pad = legend.borderpad * fontsize
         else:
             pad = self._pad * fontsize
+  
+        if (self._direction != 'x') or (self._direction != 'y'):
+            raise Exception("direction must be 'x' or 'y'.")
+            
+        if self._direction == 'x':
+            if ndivide > 1:
+                width = (width - pad * (ndivide - 1)) / ndivide
+            xds_cycle = cycle(xdescent - (width + pad) * np.arange(ndivide))
+            a_list = []
+            for handle1 in orig_handle:
+                handler = legend.get_legend_handler(handler_map, handle1)
+                _a_list = handler.create_artists(
+                    legend, handle1,
+                    next(xds_cycle), ydescent, width, height, fontsize, trans)
+                a_list.extend(_a_list)
 
-        if ndivide > 1:
-            width = (width - pad * (ndivide - 1)) / ndivide
-
-        xds_cycle = cycle(xdescent - (width + pad) * np.arange(ndivide))
-
-        a_list = []
-        for handle1 in orig_handle:
-            handler = legend.get_legend_handler(handler_map, handle1)
-            _a_list = handler.create_artists(
-                legend, handle1,
-                next(xds_cycle), ydescent, width, height, fontsize, trans)
-            a_list.extend(_a_list)
-
+        if self._direction == 'y':
+            if ndivide > 1:
+                height = (height - pad * (ndivide - 1)) / ndivide
+            yds_cycle = cycle(ydescent - (width - pad)/2 + (width - pad)/2 * np.arange(ndivide))
+            a_list = []
+            for handle1 in orig_handle:
+                handler = legend.get_legend_handler(handler_map, handle1)
+                _a_list = handler.create_artists(
+                    legend, handle1,
+                    xdescent, next(yds_cycle), width, height, fontsize, trans)
+                a_list.extend(_a_list)
         return a_list
-
 
 class HandlerPolyCollection(HandlerBase):
     """
